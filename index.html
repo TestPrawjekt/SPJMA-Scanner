@@ -35,7 +35,6 @@ box-shadow:0 4px 12px rgba(0,0,0,0.1);
 }
 
 h2{
-margin-top:5px;
 margin-bottom:15px;
 }
 
@@ -61,33 +60,6 @@ font-size:18px;
 word-break:break-word;
 }
 
-button{
-width:100%;
-padding:14px;
-margin-top:10px;
-font-size:16px;
-border:none;
-border-radius:8px;
-background:#1976d2;
-color:white;
-}
-
-button:active{
-transform:scale(0.97);
-}
-
-@media (max-width:480px){
-
-.container{
-padding:15px;
-}
-
-#result{
-font-size:16px;
-}
-
-}
-
 </style>
 
 </head>
@@ -108,37 +80,26 @@ font-size:16px;
 
 <script>
 
-/* ============================
-   CHANGE THIS
-============================ */
-
-const API_URL = "https://script.google.com/macros/s/AKfycbzBJCb83JHjAlqt1pmSweTDMOKZhkWphaTI27Xqd-55PQ6v4vefqzQcPA2o7BRnMdKt/exec";
-
-/* ============================ */
+const API_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL";
 
 const resultEl = document.getElementById("result");
 const sheetSelect = document.getElementById("sheetSelect");
 
 let lastScan = "";
-let scanCooldown = false;
+let cooldown = false;
 
-/* ============================
-   LOAD SHEET NAMES
-============================ */
+
 
 function loadSheets(){
 
 fetch(API_URL + "?action=getSheets")
-.then(res => res.text())
-.then(text => {
+.then(res => res.json())
+.then(data => {
 
-console.log("API response:", text);
-
-const sheets = JSON.parse(text);
-
-sheets.forEach(name => {
+data.forEach(name => {
 
 const opt = document.createElement("option");
+
 opt.value = name;
 opt.textContent = name;
 
@@ -149,7 +110,7 @@ sheetSelect.appendChild(opt);
 })
 .catch(err => {
 
-console.error("Sheet load error:", err);
+console.error(err);
 resultEl.innerText = "Failed to load sheets";
 
 });
@@ -159,9 +120,6 @@ resultEl.innerText = "Failed to load sheets";
 loadSheets();
 
 
-/* ============================
-   SAVE SCAN TO SHEET
-============================ */
 
 function saveScan(code){
 
@@ -178,7 +136,11 @@ sheetName:sheetSelect.value
 .then(res => res.json())
 .then(data => {
 
+if(data.status === "success"){
 resultEl.innerText = "Saved: " + code;
+}else{
+resultEl.innerText = "Save error";
+}
 
 })
 .catch(err => {
@@ -191,17 +153,14 @@ resultEl.innerText = "Save failed";
 }
 
 
-/* ============================
-   SCANNER FUNCTION
-============================ */
 
 function onScanSuccess(decodedText){
 
-if(scanCooldown) return;
+if(cooldown) return;
 
 if(decodedText === lastScan) return;
 
-scanCooldown = true;
+cooldown = true;
 lastScan = decodedText;
 
 resultEl.innerText = "Scanned: " + decodedText;
@@ -209,30 +168,20 @@ resultEl.innerText = "Scanned: " + decodedText;
 saveScan(decodedText);
 
 setTimeout(()=>{
-scanCooldown = false;
+
+cooldown = false;
+
 },1500);
 
 }
 
 
-/* ============================
-   START SCANNER
-============================ */
 
 const scanner = new Html5QrcodeScanner(
 "reader",
 {
 fps:10,
-
-qrbox:function(viewfinderWidth, viewfinderHeight){
-
-let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-let size = Math.floor(minEdge * 0.75);
-
-return {width:size,height:size};
-
-}
-
+qrbox:250
 }
 );
 
