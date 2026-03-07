@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>SPJMA QR Scanner</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+
+*{
+box-sizing:border-box;
+}
+
+body{
+font-family:Montserrat;
+text-align:center;
+padding:15px;
+margin:0;
+background:#f5f5f5;
+}
+
+h2{
+margin-top:10px;
+}
+
+.container{
+max-width:500px;
+margin:auto;
+background:white;
+padding:20px;
+border-radius:12px;
+box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+select{
+width:100%;
+padding:12px;
+margin-bottom:15px;
+font-size:16px;
+border-radius:8px;
+border:1px solid #ccc;
+}
+
+#reader{
+width:100%;
+max-width:350px;
+margin:auto;
+}
+
+#result{
+margin-top:15px;
+font-size:18px;
+font-weight:bold;
+word-break:break-word;
+}
+
+button{
+width:100%;
+padding:14px;
+margin-top:10px;
+font-size:16px;
+border:none;
+border-radius:8px;
+background:#2c7be5;
+color:white;
+}
+
+button:active{
+transform:scale(0.98);
+}
+
+@media (max-width:480px){
+
+body{
+padding:10px;
+}
+
+.container{
+padding:15px;
+}
+
+#result{
+font-size:16px;
+}
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>SPJMA QR Scanner</h2>
+
+<select id="sheetSelect"></select>
+
+<div id="reader"></div>
+
+<div id="result">Waiting for scan...</div>
+
+</div>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbzmH_tigj8s0ExvgaoKNAjaZ_fWjuvfAgZRlvTG_pVBB1UxQBLn_oO4duLgK9gUrO7u/exec";
+
+const resultEl = document.getElementById("result");
+const sheetSelect = document.getElementById("sheetSelect");
+
+function loadSheets(){
+
+fetch(API_URL + "?action=getSheets")
+.then(res => res.json())
+.then(data => {
+
+data.forEach(name => {
+
+const opt = document.createElement("option");
+opt.value = name;
+opt.textContent = name;
+
+sheetSelect.appendChild(opt);
+
+});
+
+});
+
+}
+
+loadSheets();
+
+
+function onScanSuccess(decodedText){
+
+resultEl.innerText = "Scanned: " + decodedText;
+
+fetch(API_URL,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+code:decodedText,
+sheetName:sheetSelect.value
+})
+})
+.then(res=>res.json())
+.then(data=>{
+
+resultEl.innerText="Saved: "+decodedText;
+
+});
+
+}
+
+
+const scanner = new Html5QrcodeScanner(
+"reader",
+{
+fps:10,
+qrbox: function(viewfinderWidth, viewfinderHeight) {
+
+let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+let qrSize = Math.floor(minEdge * 0.75);
+
+return { width: qrSize, height: qrSize };
+
+}
+}
+);
+
+scanner.render(onScanSuccess);
+
+</script>
+
+</body>
+
+</html>
