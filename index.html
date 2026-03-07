@@ -20,13 +20,9 @@ box-sizing:border-box;
 body{
 font-family:Montserrat;
 text-align:center;
-padding:15px;
 margin:0;
-background:#f5f5f5;
-}
-
-h2{
-margin-top:10px;
+padding:15px;
+background:#f4f6f8;
 }
 
 .container{
@@ -35,7 +31,12 @@ margin:auto;
 background:white;
 padding:20px;
 border-radius:12px;
-box-shadow:0 4px 10px rgba(0,0,0,0.1);
+box-shadow:0 4px 12px rgba(0,0,0,0.1);
+}
+
+h2{
+margin-top:5px;
+margin-bottom:15px;
 }
 
 select{
@@ -55,8 +56,8 @@ margin:auto;
 
 #result{
 margin-top:15px;
-font-size:18px;
 font-weight:bold;
+font-size:18px;
 word-break:break-word;
 }
 
@@ -67,19 +68,15 @@ margin-top:10px;
 font-size:16px;
 border:none;
 border-radius:8px;
-background:#2c7be5;
+background:#1976d2;
 color:white;
 }
 
 button:active{
-transform:scale(0.98);
+transform:scale(0.97);
 }
 
 @media (max-width:480px){
-
-body{
-padding:10px;
-}
 
 .container{
 padding:15px;
@@ -111,18 +108,35 @@ font-size:16px;
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyB8QYR3uRy1SN9bOi7Tktr_Boj1hGIg1tfgympO2o13Cz1_fyB8VVAvxdC9bsRAlUC/exec";
+/* ============================
+   CHANGE THIS
+============================ */
+
+const API_URL = "https://script.google.com/macros/s/AKfycbzBJCb83JHjAlqt1pmSweTDMOKZhkWphaTI27Xqd-55PQ6v4vefqzQcPA2o7BRnMdKt/exec";
+
+/* ============================ */
 
 const resultEl = document.getElementById("result");
 const sheetSelect = document.getElementById("sheetSelect");
 
+let lastScan = "";
+let scanCooldown = false;
+
+/* ============================
+   LOAD SHEET NAMES
+============================ */
+
 function loadSheets(){
 
 fetch(API_URL + "?action=getSheets")
-.then(res => res.json())
-.then(data => {
+.then(res => res.text())
+.then(text => {
 
-data.forEach(name => {
+console.log("API response:", text);
+
+const sheets = JSON.parse(text);
+
+sheets.forEach(name => {
 
 const opt = document.createElement("option");
 opt.value = name;
@@ -132,6 +146,12 @@ sheetSelect.appendChild(opt);
 
 });
 
+})
+.catch(err => {
+
+console.error("Sheet load error:", err);
+resultEl.innerText = "Failed to load sheets";
+
 });
 
 }
@@ -139,9 +159,11 @@ sheetSelect.appendChild(opt);
 loadSheets();
 
 
-function onScanSuccess(decodedText){
+/* ============================
+   SAVE SCAN TO SHEET
+============================ */
 
-resultEl.innerText = "Scanned: " + decodedText;
+function saveScan(code){
 
 fetch(API_URL,{
 method:"POST",
@@ -149,32 +171,68 @@ headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
-code:decodedText,
+code:code,
 sheetName:sheetSelect.value
 })
 })
-.then(res=>res.json())
-.then(data=>{
+.then(res => res.json())
+.then(data => {
 
-resultEl.innerText="Saved: "+decodedText;
+resultEl.innerText = "Saved: " + code;
+
+})
+.catch(err => {
+
+console.error(err);
+resultEl.innerText = "Save failed";
 
 });
 
 }
 
 
+/* ============================
+   SCANNER FUNCTION
+============================ */
+
+function onScanSuccess(decodedText){
+
+if(scanCooldown) return;
+
+if(decodedText === lastScan) return;
+
+scanCooldown = true;
+lastScan = decodedText;
+
+resultEl.innerText = "Scanned: " + decodedText;
+
+saveScan(decodedText);
+
+setTimeout(()=>{
+scanCooldown = false;
+},1500);
+
+}
+
+
+/* ============================
+   START SCANNER
+============================ */
+
 const scanner = new Html5QrcodeScanner(
 "reader",
 {
 fps:10,
-qrbox: function(viewfinderWidth, viewfinderHeight) {
+
+qrbox:function(viewfinderWidth, viewfinderHeight){
 
 let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-let qrSize = Math.floor(minEdge * 0.75);
+let size = Math.floor(minEdge * 0.75);
 
-return { width: qrSize, height: qrSize };
+return {width:size,height:size};
 
 }
+
 }
 );
 
