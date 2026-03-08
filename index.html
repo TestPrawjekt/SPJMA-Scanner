@@ -1,212 +1,145 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-
-<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
-
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>SPJMA QR Scanner</title>
+<meta charset="UTF-8">
+<title>QR Scanner</title>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-
-*{
-box-sizing:border-box;
-}
-
 body{
-font-family:Montserrat;
+font-family:Arial;
 text-align:center;
-margin:0;
-padding:15px;
-background:#f4f6f8;
-}
-
-.container{
-max-width:500px;
-margin:auto;
-background:white;
+background:#f4f4f4;
 padding:20px;
-border-radius:12px;
-box-shadow:0 4px 12px rgba(0,0,0,0.1);
-}
-
-h2{
-margin-bottom:15px;
-}
-
-select{
-width:100%;
-padding:12px;
-margin-bottom:15px;
-font-size:16px;
-border-radius:8px;
-border:1px solid #ccc;
 }
 
 #reader{
-width:100%;
-max-width:350px;
+width:300px;
 margin:auto;
 }
 
-#result{
-margin-top:15px;
-font-weight:bold;
-font-size:18px;
-word-break:break-word;
+select,button{
+padding:10px;
+margin:10px;
+font-size:16px;
 }
 
+#status{
+margin-top:15px;
+font-weight:bold;
+}
 </style>
 
 </head>
-
 <body>
 
-<div class="container">
+<h2>QR Code Scanner</h2>
 
-<h2>SPJMA QR Scanner</h2>
+<label>Select Sheet</label><br>
 
-<select id="sheetSelect"></select>
+<select id="sheetSelect">
+<option>Loading sheets...</option>
+</select>
+
+<br>
 
 <div id="reader"></div>
 
-<div id="result">Loading sheets...</div>
-
-</div>
+<p id="status"></p>
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyiGRfSdbwbGzfqnYxBwyG1jIsEZ44-r7PrHecoyT4y1azoMyWBCyyaYdx6Fdlcqk9N/exec";
-
-const resultEl = document.getElementById("result");
-const sheetSelect = document.getElementById("sheetSelect");
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyiGRfSdbwbGzfqnYxBwyG1jIsEZ44-r7PrHecoyT4y1azoMyWBCyyaYdx6Fdlcqk9N/exec";
 
 let lastScan = "";
-let cooldown = false;
 
+async function loadSheets(){
 
+try{
 
-/* LOAD SHEET NAMES */
+const response = await fetch(`${SCRIPT_URL}?action=getSheets`);
+const sheets = await response.json();
 
-function loadSheets(){
+const dropdown = document.getElementById("sheetSelect");
+dropdown.innerHTML="";
 
-fetch(API_URL + "?action=getSheets")
-.then(res => res.text())
-.then(text => {
-
-console.log("Sheets API response:", text);
-
-const data = JSON.parse(text);
-
-sheetSelect.innerHTML = "";
-
-data.forEach(name => {
-
-const opt = document.createElement("option");
-
-opt.value = name;
-opt.textContent = name;
-
-sheetSelect.appendChild(opt);
-
+sheets.forEach(name=>{
+let option=document.createElement("option");
+option.value=name;
+option.textContent=name;
+dropdown.appendChild(option);
 });
 
-resultEl.innerText = "Ready to scan";
+}catch(err){
 
-})
-.catch(err => {
-
-console.error("Sheet load error:", err);
-resultEl.innerText = "Failed to load sheets";
-
-});
+document.getElementById("status").innerText="Failed to load sheets";
+console.error(err);
 
 }
 
-loadSheets();
+}
 
+async function sendToSheet(code){
 
+const sheetName=document.getElementById("sheetSelect").value;
 
-/* SAVE QR SCAN */
+try{
 
-function saveScan(code){
-
-fetch(API_URL,{
+await fetch(SCRIPT_URL,{
 method:"POST",
 headers:{
 "Content-Type":"application/json"
 },
 body:JSON.stringify({
 code:code,
-sheetName:sheetSelect.value
+sheetName:sheetName
 })
-})
-.then(res => res.text())
-.then(text => {
-
-console.log("Save response:", text);
-
-const data = JSON.parse(text);
-
-if(data.status === "success"){
-resultEl.innerText = "Saved: " + code;
-}else{
-resultEl.innerText = "Save error: " + data.message;
-}
-
-})
-.catch(err => {
-
-console.error("Save error:", err);
-resultEl.innerText = "Save failed";
-
 });
 
+document.getElementById("status").innerText="Saved: "+code;
+
+}catch(err){
+
+document.getElementById("status").innerText="Error saving scan";
+
 }
 
-
-
-/* QR SCAN SUCCESS */
+}
 
 function onScanSuccess(decodedText){
 
-if(cooldown) return;
+if(decodedText===lastScan) return;
 
-if(decodedText === lastScan) return;
+lastScan=decodedText;
 
-cooldown = true;
-lastScan = decodedText;
+document.getElementById("status").innerText="Scanned: "+decodedText;
 
-resultEl.innerText = "Scanned: " + decodedText;
+sendToSheet(decodedText);
 
-saveScan(decodedText);
-
-setTimeout(()=>{
-cooldown = false;
-},1500);
+setTimeout(()=>lastScan="",2000);
 
 }
 
+function startScanner(){
 
+const html5QrCode=new Html5Qrcode("reader");
 
-/* START SCANNER */
-
-const scanner = new Html5QrcodeScanner(
-"reader",
+html5QrCode.start(
+{ facingMode:"environment" },
 {
 fps:10,
 qrbox:250
-}
+},
+onScanSuccess
 );
 
-scanner.render(onScanSuccess);
+}
+
+loadSheets();
+startScanner();
 
 </script>
 
 </body>
-
 </html>
