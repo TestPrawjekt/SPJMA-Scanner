@@ -74,7 +74,7 @@ word-break:break-word;
 
 <div id="reader"></div>
 
-<div id="result">Waiting for scan...</div>
+<div id="result">Loading sheets...</div>
 
 </div>
 
@@ -90,11 +90,19 @@ let cooldown = false;
 
 
 
+/* LOAD SHEET NAMES */
+
 function loadSheets(){
 
 fetch(API_URL + "?action=getSheets")
-.then(res => res.json())
-.then(data => {
+.then(res => res.text())
+.then(text => {
+
+console.log("Sheets API response:", text);
+
+const data = JSON.parse(text);
+
+sheetSelect.innerHTML = "";
 
 data.forEach(name => {
 
@@ -107,10 +115,12 @@ sheetSelect.appendChild(opt);
 
 });
 
+resultEl.innerText = "Ready to scan";
+
 })
 .catch(err => {
 
-console.error(err);
+console.error("Sheet load error:", err);
 resultEl.innerText = "Failed to load sheets";
 
 });
@@ -120,6 +130,8 @@ resultEl.innerText = "Failed to load sheets";
 loadSheets();
 
 
+
+/* SAVE QR SCAN */
 
 function saveScan(code){
 
@@ -133,19 +145,23 @@ code:code,
 sheetName:sheetSelect.value
 })
 })
-.then(res => res.json())
-.then(data => {
+.then(res => res.text())
+.then(text => {
+
+console.log("Save response:", text);
+
+const data = JSON.parse(text);
 
 if(data.status === "success"){
 resultEl.innerText = "Saved: " + code;
 }else{
-resultEl.innerText = "Save error";
+resultEl.innerText = "Save error: " + data.message;
 }
 
 })
 .catch(err => {
 
-console.error(err);
+console.error("Save error:", err);
 resultEl.innerText = "Save failed";
 
 });
@@ -153,6 +169,8 @@ resultEl.innerText = "Save failed";
 }
 
 
+
+/* QR SCAN SUCCESS */
 
 function onScanSuccess(decodedText){
 
@@ -168,14 +186,14 @@ resultEl.innerText = "Scanned: " + decodedText;
 saveScan(decodedText);
 
 setTimeout(()=>{
-
 cooldown = false;
-
 },1500);
 
 }
 
 
+
+/* START SCANNER */
 
 const scanner = new Html5QrcodeScanner(
 "reader",
